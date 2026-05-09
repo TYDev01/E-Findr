@@ -4,13 +4,12 @@ use uuid::Uuid;
 
 use crate::{error::AppError, state::AppState};
 
-const PHOTO_QUEUE: &str = "efindr:photo-processing";
+pub const PHOTO_QUEUE: &str = "efindr:photo-processing";
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PhotoProcessingJob {
     pub photo_id: Uuid,
     pub event_id: Uuid,
-    pub image_url: String,
 }
 
 pub async fn enqueue_photo_job(state: &AppState, job: &PhotoProcessingJob) -> Result<(), AppError> {

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { AuthForm } from "@/components/auth-form";
 import { Panel, Section } from "@/components/ui";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth.server";
 
 export default async function LoginPage() {
   const user = await getCurrentUser();

@@ -9,7 +9,7 @@ import { getClientAuthHeaders } from "@/lib/auth";
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://localhost:8080";
 
-export function NewEventForm({ organizerId }: { organizerId: string }) {
+export function NewEventForm() {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -37,7 +37,6 @@ export function NewEventForm({ organizerId }: { organizerId: string }) {
                 ...getClientAuthHeaders()
               },
               body: JSON.stringify({
-                organizer_id: organizerId,
                 title,
                 location: String(form.get("location") ?? "").trim() || null,
                 description: String(form.get("description") ?? "").trim() || null,

@@ -1,4 +1,4 @@
-import { getServerAuthToken } from "@/lib/auth";
+import { getServerAuthToken } from "@/lib/auth.server";
 
 export type EventSummary = {
   id: string;
@@ -45,8 +45,9 @@ export type SearchMatch = {
   similarity_score: number;
 };
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://localhost:8080";
+const API_URL = (
+  process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"
+).replace(/\/$/, "");
 
 async function apiFetch<T>(
   path: string,

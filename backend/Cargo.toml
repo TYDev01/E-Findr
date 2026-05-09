@@ -15,7 +15,7 @@ dotenvy = "0.15"
 http = "1"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
 jsonwebtoken = "9"
-pgvector = { version = "0.4", features = ["sqlx"] }
+pgvector = { version = "0.4", features = ["sqlx", "serde"] }
 redis = { version = "0.25", features = ["tokio-comp"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }

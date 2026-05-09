@@ -18,10 +18,21 @@ services:
       - postgres
       - redis
 
+  worker:
+    build: ./backend
+    command: ["efindr-worker"]
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    depends_on:
+      - api
+      - redis
+
   ai-service:
     build: ./ai
     ports:
       - "8001:8001"
+    restart: unless-stopped
     env_file:
       - ./.env
 
@@ -31,16 +42,11 @@ services:
       POSTGRES_DB: efindr
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
 
 volumes:
   postgres_data:
-

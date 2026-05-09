@@ -1,7 +1,7 @@
 import { DashboardShell } from "@/components/dashboard-shell";
 import { Panel } from "@/components/ui";
 import { getDashboardData } from "@/lib/api";
-import { requireCurrentUser } from "@/lib/auth";
+import { requireCurrentUser } from "@/lib/auth.server";
 
 export default async function DashboardPage() {
   const user = await requireCurrentUser();

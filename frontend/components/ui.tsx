@@ -4,24 +4,28 @@ import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export function Section({
+  id,
   className,
   children
 }: {
+  id?: string;
   className?: string;
   children: ReactNode;
 }) {
-  return <section className={cn("mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8", className)}>{children}</section>;
+  return <section id={id} className={cn("mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8", className)}>{children}</section>;
 }
 
 export function Panel({
+  id,
   className,
   children
 }: {
+  id?: string;
   className?: string;
   children: ReactNode;
 }) {
   return (
-    <div className={cn("rounded-[28px] border border-black/5 bg-white/80 p-6 shadow-panel backdrop-blur", className)}>
+    <div id={id} className={cn("rounded-[28px] border border-black/5 bg-white/80 p-6 shadow-panel backdrop-blur", className)}>
       {children}
     </div>
   );

@@ -1,4 +1,4 @@
-import { requireCurrentUser } from "@/lib/auth";
+import { requireCurrentUser } from "@/lib/auth.server";
 
 export default async function DashboardLayout({
   children

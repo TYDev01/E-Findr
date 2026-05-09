@@ -1,6 +1,5 @@
-use axum::http::header;
 use axum::{
-    extract::{Request, State},
+    extract::State,
     routing::{get, post},
     Json, Router,
 };
@@ -11,7 +10,7 @@ use uuid::Uuid;
 use crate::{
     error::AppError,
     models::User,
-    services::auth::{decode_token, encode_token, hash_password, verify_password},
+    services::auth::{encode_token, hash_password, verify_password, AuthenticatedUser},
     state::AppState,
 };
 
@@ -108,32 +107,10 @@ async fn logout() -> Json<serde_json::Value> {
     Json(serde_json::json!({ "ok": true }))
 }
 
-async fn me(
-    request: Request,
-    State(state): State<AppState>,
-) -> Result<Json<UserSummary>, AppError> {
-    let token = bearer_token(&request).ok_or(AppError::Unauthorized)?;
-    let claims = decode_token(token, &state.settings.jwt_secret)?;
-
-    let user = query_as::<_, User>(
-        "SELECT id, email, password_hash, name, created_at FROM users WHERE id = $1",
-    )
-    .bind(claims.sub)
-    .fetch_optional(&state.db)
-    .await?
-    .ok_or(AppError::Unauthorized)?;
-
+async fn me(authenticated_user: AuthenticatedUser) -> Result<Json<UserSummary>, AppError> {
     Ok(Json(UserSummary {
-        id: user.id,
-        email: user.email,
-        name: user.name,
+        id: authenticated_user.id,
+        email: authenticated_user.email,
+        name: authenticated_user.name,
     }))
-}
-
-fn bearer_token(request: &Request) -> Option<&str> {
-    request
-        .headers()
-        .get(header::AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        .and_then(|header| header.strip_prefix("Bearer "))
 }

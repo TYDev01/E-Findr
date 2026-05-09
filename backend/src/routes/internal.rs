@@ -1,5 +1,6 @@
 use axum::{
     extract::{Path, State},
+    http::{header, HeaderMap},
     routing::post,
     Json, Router,
 };
@@ -19,9 +20,12 @@ pub fn router() -> Router<AppState> {
 }
 
 pub async fn process_photo(
+    headers: HeaderMap,
     Path(photo_id): Path<Uuid>,
     State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    authorize_internal_request(&headers, &state)?;
+
     let photo = query_as::<_, Photo>(
         "SELECT id, event_id, storage_key, thumbnail_key, original_filename, mime_type, size_bytes, width, height, processing_status, created_at
          FROM photos WHERE id = $1",
@@ -87,4 +91,18 @@ pub async fn process_photo(
             Err(error)
         }
     }
+}
+
+fn authorize_internal_request(headers: &HeaderMap, state: &AppState) -> Result<(), AppError> {
+    let token = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .ok_or(AppError::Unauthorized)?;
+
+    if token != state.settings.internal_service_token {
+        return Err(AppError::Unauthorized);
+    }
+
+    Ok(())
 }

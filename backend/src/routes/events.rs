@@ -6,14 +6,13 @@ use axum::{
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::query_as;
-use tokio::task::JoinHandle;
 use uuid::Uuid;
 
 use crate::{
     error::AppError,
     models::{Event, EventView, Photo, PhotoView, UploadResponse},
     services::{
-        auth::hash_password,
+        auth::{hash_password, AuthenticatedUser},
         queue::{enqueue_photo_job, PhotoProcessingJob},
         storage::{photo_to_view, upload_photo_assets, validate_upload},
     },
@@ -22,7 +21,6 @@ use crate::{
 
 #[derive(Debug, Deserialize)]
 pub struct CreateEventPayload {
-    pub organizer_id: Uuid,
     pub title: String,
     pub description: Option<String>,
     pub location: Option<String>,
@@ -61,6 +59,7 @@ pub fn router() -> Router<AppState> {
 }
 
 async fn create_event(
+    authenticated_user: AuthenticatedUser,
     State(state): State<AppState>,
     Json(payload): Json<CreateEventPayload>,
 ) -> Result<Json<EventView>, AppError> {
@@ -77,7 +76,7 @@ async fn create_event(
          RETURNING id, organizer_id, title, description, location, event_date, slug, access_code_hash, is_private, created_at, updated_at",
     )
     .bind(Uuid::new_v4())
-    .bind(payload.organizer_id)
+    .bind(authenticated_user.id)
     .bind(payload.title)
     .bind(payload.description)
     .bind(payload.location)
@@ -91,11 +90,15 @@ async fn create_event(
     Ok(Json(event.into()))
 }
 
-async fn list_events(State(state): State<AppState>) -> Result<Json<Vec<EventView>>, AppError> {
+async fn list_events(
+    authenticated_user: AuthenticatedUser,
+    State(state): State<AppState>,
+) -> Result<Json<Vec<EventView>>, AppError> {
     let events = query_as::<_, Event>(
         "SELECT id, organizer_id, title, description, location, event_date, slug, access_code_hash, is_private, created_at, updated_at
-         FROM events ORDER BY created_at DESC",
+         FROM events WHERE organizer_id = $1 ORDER BY created_at DESC",
     )
+    .bind(authenticated_user.id)
     .fetch_all(&state.db)
     .await?;
 
@@ -103,17 +106,11 @@ async fn list_events(State(state): State<AppState>) -> Result<Json<Vec<EventView
 }
 
 async fn get_event(
+    authenticated_user: AuthenticatedUser,
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
 ) -> Result<Json<EventDetailResponse>, AppError> {
-    let event = query_as::<_, Event>(
-        "SELECT id, organizer_id, title, description, location, event_date, slug, access_code_hash, is_private, created_at, updated_at
-         FROM events WHERE id = $1",
-    )
-    .bind(id)
-    .fetch_optional(&state.db)
-    .await?
-    .ok_or(AppError::NotFound)?;
+    let event = load_owned_event(&state, id, authenticated_user.id).await?;
 
     let photos = load_photo_views(&state, id).await?;
 
@@ -125,6 +122,7 @@ async fn get_event(
 }
 
 async fn update_event(
+    authenticated_user: AuthenticatedUser,
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
     Json(payload): Json<UpdateEventPayload>,
@@ -133,14 +131,7 @@ async fn update_event(
         Some(access_code) if !access_code.trim().is_empty() => Some(hash_password(&access_code)?),
         Some(_) => None,
         None => {
-            let existing = query_as::<_, Event>(
-                "SELECT id, organizer_id, title, description, location, event_date, slug, access_code_hash, is_private, created_at, updated_at
-                 FROM events WHERE id = $1",
-            )
-            .bind(id)
-            .fetch_optional(&state.db)
-            .await?
-            .ok_or(AppError::NotFound)?;
+            let existing = load_owned_event(&state, id, authenticated_user.id).await?;
             existing.access_code_hash
         }
     };
@@ -154,7 +145,7 @@ async fn update_event(
              access_code_hash = $6,
              is_private = COALESCE($7, is_private),
              updated_at = NOW()
-         WHERE id = $1
+         WHERE id = $1 AND organizer_id = $8
          RETURNING id, organizer_id, title, description, location, event_date, slug, access_code_hash, is_private, created_at, updated_at",
     )
     .bind(id)
@@ -164,6 +155,7 @@ async fn update_event(
     .bind(payload.event_date)
     .bind(access_code_hash)
     .bind(payload.is_private)
+    .bind(authenticated_user.id)
     .fetch_optional(&state.db)
     .await?
     .ok_or(AppError::NotFound)?;
@@ -172,32 +164,41 @@ async fn update_event(
 }
 
 async fn delete_event(
+    authenticated_user: AuthenticatedUser,
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    sqlx::query("DELETE FROM events WHERE id = $1")
+    let result = sqlx::query("DELETE FROM events WHERE id = $1 AND organizer_id = $2")
         .bind(id)
+        .bind(authenticated_user.id)
         .execute(&state.db)
         .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound);
+    }
 
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
 
 async fn list_photos(
+    authenticated_user: AuthenticatedUser,
     Path(id): Path<Uuid>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<PhotoView>>, AppError> {
+    load_owned_event(&state, id, authenticated_user.id).await?;
     let photos = load_photo_views(&state, id).await?;
     Ok(Json(photos))
 }
 
 async fn upload_photos(
+    authenticated_user: AuthenticatedUser,
     Path(event_id): Path<Uuid>,
     State(state): State<AppState>,
     mut multipart: Multipart,
 ) -> Result<Json<UploadResponse>, AppError> {
+    load_owned_event(&state, event_id, authenticated_user.id).await?;
     let mut uploaded = Vec::new();
-    let mut background_jobs: Vec<JoinHandle<()>> = Vec::new();
 
     while let Some(field) = multipart
         .next_field()
@@ -252,19 +253,8 @@ async fn upload_photos(
         .fetch_one(&state.db)
         .await?;
 
-        let image_url = crate::services::storage::signed_asset_url(&state, &storage_key).await?;
-        let job = PhotoProcessingJob {
-            photo_id,
-            event_id,
-            image_url,
-        };
+        let job = PhotoProcessingJob { photo_id, event_id };
         enqueue_photo_job(&state, &job).await?;
-
-        let state_for_task = state.clone();
-        background_jobs.push(tokio::spawn(async move {
-            let _ =
-                crate::routes::internal::process_photo(Path(photo_id), State(state_for_task)).await;
-        }));
 
         uploaded.push(photo_to_view(&state, &photo).await?);
     }
@@ -276,19 +266,27 @@ async fn upload_photos(
     }
 
     Ok(Json(UploadResponse {
-        queued_jobs: background_jobs.len(),
+        queued_jobs: uploaded.len(),
         uploaded,
     }))
 }
 
 async fn delete_photo(
-    Path((_event_id, photo_id)): Path<(Uuid, Uuid)>,
+    authenticated_user: AuthenticatedUser,
+    Path((event_id, photo_id)): Path<(Uuid, Uuid)>,
     State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    sqlx::query("DELETE FROM photos WHERE id = $1")
+    load_owned_event(&state, event_id, authenticated_user.id).await?;
+
+    let result = sqlx::query("DELETE FROM photos WHERE id = $1 AND event_id = $2")
         .bind(photo_id)
+        .bind(event_id)
         .execute(&state.db)
         .await?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound);
+    }
 
     Ok(Json(serde_json::json!({ "deleted": true })))
 }
@@ -308,4 +306,20 @@ async fn load_photo_views(state: &AppState, event_id: Uuid) -> Result<Vec<PhotoV
     }
 
     Ok(views)
+}
+
+async fn load_owned_event(
+    state: &AppState,
+    event_id: Uuid,
+    organizer_id: Uuid,
+) -> Result<Event, AppError> {
+    query_as::<_, Event>(
+        "SELECT id, organizer_id, title, description, location, event_date, slug, access_code_hash, is_private, created_at, updated_at
+         FROM events WHERE id = $1 AND organizer_id = $2",
+    )
+    .bind(event_id)
+    .bind(organizer_id)
+    .fetch_optional(&state.db)
+    .await?
+    .ok_or(AppError::NotFound)
 }

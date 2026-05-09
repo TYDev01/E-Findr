@@ -1,11 +1,12 @@
-import { Copy, Download, QrCode, Trash2 } from "lucide-react";
+import { Download, QrCode, Trash2 } from "lucide-react";
 import Image from "next/image";
 
+import { CopyLinkButton } from "@/components/copy-link-button";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { PhotoUploadForm } from "@/components/photo-upload-form";
 import { Panel } from "@/components/ui";
 import { getEventDetail } from "@/lib/api";
-import { requireCurrentUser } from "@/lib/auth";
+import { requireCurrentUser } from "@/lib/auth.server";
 
 const statusTone: Record<string, string> = {
   completed: "bg-fern/10 text-fern",
@@ -49,7 +50,7 @@ export default async function EventDetailPage({
             <div className="sm:col-span-2">
               <PhotoUploadForm eventId={event.id} />
             </div>
-            <button className="flex items-center justify-center gap-2 rounded-2xl border border-ink/10 px-4 py-3 text-sm font-semibold text-ink"><Copy className="h-4 w-4" /> Copy link</button>
+            <CopyLinkButton url={share_url} />
             <button className="flex items-center justify-center gap-2 rounded-2xl border border-ink/10 px-4 py-3 text-sm font-semibold text-ink"><QrCode className="h-4 w-4" /> Download QR</button>
             <button className="flex items-center justify-center gap-2 rounded-2xl border border-clay/20 px-4 py-3 text-sm font-semibold text-clay"><Trash2 className="h-4 w-4" /> Delete event</button>
           </div>

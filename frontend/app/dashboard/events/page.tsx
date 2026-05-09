@@ -3,7 +3,7 @@ import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { Panel } from "@/components/ui";
 import { getEvents } from "@/lib/api";
-import { requireCurrentUser } from "@/lib/auth";
+import { requireCurrentUser } from "@/lib/auth.server";
 
 export default async function DashboardEventsPage() {
   const user = await requireCurrentUser();
