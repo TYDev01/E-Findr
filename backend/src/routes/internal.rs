@@ -40,7 +40,15 @@ pub async fn process_photo(
         .execute(&state.db)
         .await?;
 
-    let image_url = crate::services::storage::signed_asset_url(&state, &photo.storage_key).await?;
+    let image_url = match crate::services::storage::signed_asset_url(&state, &photo.storage_key).await {
+        Ok(url) => url,
+        Err(e) => {
+            tracing::error!(photo_id = %photo_id, "failed to generate signed URL: {:?}", e);
+            return Err(e);
+        }
+    };
+
+    tracing::info!(photo_id = %photo_id, "calling AI service at {}", state.settings.ai_service_url);
     match process_event_photo(
         &state,
         &ProcessPhotoRequest {
@@ -84,6 +92,7 @@ pub async fn process_photo(
             })))
         }
         Err(error) => {
+            tracing::error!(photo_id = %photo_id, "AI service processing failed: {:?}", error);
             sqlx::query("UPDATE photos SET processing_status = 'failed' WHERE id = $1")
                 .bind(photo.id)
                 .execute(&state.db)

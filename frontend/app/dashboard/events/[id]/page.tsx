@@ -1,8 +1,10 @@
-import { Download, QrCode, Trash2 } from "lucide-react";
+import { Download } from "lucide-react";
 import Image from "next/image";
 
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { DashboardShell } from "@/components/dashboard-shell";
+import { DeleteEventButton } from "@/components/delete-event-button";
+import { DownloadQrButton } from "@/components/download-qr-button";
 import { PhotoUploadForm } from "@/components/photo-upload-form";
 import { Panel } from "@/components/ui";
 import { getEventDetail } from "@/lib/api";
@@ -51,8 +53,8 @@ export default async function EventDetailPage({
               <PhotoUploadForm eventId={event.id} />
             </div>
             <CopyLinkButton url={share_url} />
-            <button className="flex items-center justify-center gap-2 rounded-2xl border border-ink/10 px-4 py-3 text-sm font-semibold text-ink"><QrCode className="h-4 w-4" /> Download QR</button>
-            <button className="flex items-center justify-center gap-2 rounded-2xl border border-clay/20 px-4 py-3 text-sm font-semibold text-clay"><Trash2 className="h-4 w-4" /> Delete event</button>
+            <DownloadQrButton url={share_url} eventTitle={event.title} />
+            <DeleteEventButton eventId={event.id} />
           </div>
         </Panel>
         <Panel>
@@ -65,8 +67,8 @@ export default async function EventDetailPage({
           </div>
           <div className="mt-6 grid gap-3">
             {photos.length ? photos.map((photo) => (
-              <div key={photo.id} className="grid items-center gap-4 rounded-[22px] border border-ink/10 bg-white/70 p-4 md:grid-cols-[96px,1fr,auto]">
-                <div className="relative h-24 overflow-hidden rounded-2xl">
+              <div key={photo.id} className="grid items-center gap-4 rounded-xl border border-ink/10 bg-white/70 p-4 md:grid-cols-[96px,1fr,auto]">
+                <div className="relative h-24 overflow-hidden rounded-lg">
                   <Image src={photo.thumbnail_url} alt={photo.original_filename} fill className="object-cover" unoptimized />
                 </div>
                 <div>
@@ -78,7 +80,7 @@ export default async function EventDetailPage({
                 </span>
               </div>
             )) : (
-              <div className="rounded-[22px] border border-dashed border-ink/15 bg-white/60 px-5 py-8 text-sm text-ink/60">
+              <div className="rounded-xl border border-dashed border-ink/15 bg-white/60 px-5 py-8 text-sm text-ink/60">
                 No photos uploaded yet. Add a batch above to start R2 upload and AI indexing.
               </div>
             )}

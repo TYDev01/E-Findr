@@ -11,20 +11,13 @@ html {
 }
 
 body {
-  @apply bg-mist text-ink antialiased;
-  background-image:
-    radial-gradient(circle at 20% 10%, rgba(156, 215, 203, 0.28), transparent 28%),
-    radial-gradient(circle at 85% 12%, rgba(230, 171, 46, 0.16), transparent 22%),
-    linear-gradient(180deg, #f6f3ea 0%, #eef5ef 48%, #f7ede4 100%);
+  @apply bg-[#EFEFEF] text-ink antialiased;
 }
 
 ::selection {
-  background: rgba(47, 107, 79, 0.18);
+  background: rgba(245, 196, 48, 0.3);
 }
 
 .mesh-card {
-  background-image:
-    radial-gradient(circle at top right, rgba(216, 111, 69, 0.16), transparent 28%),
-    radial-gradient(circle at bottom left, rgba(156, 215, 203, 0.22), transparent 30%);
+  background: rgba(255, 255, 255, 0.7);
 }
-

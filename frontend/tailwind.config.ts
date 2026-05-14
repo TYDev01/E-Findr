@@ -9,12 +9,13 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#0e1b17",
-        mist: "#f4f1e8",
+        ink: "#111111",
+        mist: "#EFEFEF",
         fern: "#2f6b4f",
-        gold: "#e6ab2e",
+        gold: "#F5C430",
         clay: "#d86f45",
-        sea: "#9cd7cb"
+        sea: "#9cd7cb",
+        canvas: "#EFEFEF"
       },
       boxShadow: {
         panel: "0 24px 80px rgba(16, 34, 29, 0.12)"
